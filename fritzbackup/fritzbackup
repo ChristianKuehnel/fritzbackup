@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+import os
+import subprocess
+import yaml
+import netrc
+
+class Configuration(object):
+
+  CONFIG_FILE_NAME = '.fritzbackup/config.yaml'
+
+  def __init__(self,config_root):
+    config_file_path = os.path.join(config_root, self.CONFIG_FILE_NAME)
+    with open(config_file_path,'r') as config_file:
+      yconfig = yaml.load(config_file)
+    self.fritzbox_url = yconfig['fritzbox']['url']
+    self.target_path = yconfig['fritzbox']['target_path']
+    self.gpg_passphrase = yconfig['gpg_passphrase']
+    self.directories = yconfig['directories']
+    #self.username    
+    (self.username,_,self.password) = netrc.netrc().authenticators(self.fritzbox_url)
+
+
+def backup_directory(config, name, source_path):
+  print('backing up directory {}: {}'.format(name,source_path))
+  ftp_url='ftp://{}@{}/{}/directories/{}'.format(config.username,config.fritzbox_url, config.target_path, name)
+  new_env = os.environ.copy()
+  new_env['FTP_PASSWORD'] = config.password
+  new_env['PASSPHRASE'] = config.gpg_passphrase
+  cmd = ['duplicity',source_path,ftp_url]
+  result = subprocess.call(cmd,env=new_env)
+  if result != 0:
+    raise Exception('duplicity failed!')
+
+
+def main():
+    config = Configuration(os.path.expanduser('~'))
+    for directory in config.directories:
+      backup_directory(config, directory['name'], directory['path'])
+
+if __name__=='__main__':
+    main()
