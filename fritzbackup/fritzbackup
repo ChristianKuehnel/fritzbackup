@@ -6,50 +6,57 @@ import yaml
 import netrc
 import tempfile
 
+
 class Configuration(object):
+    CONFIG_FILE_NAME = 'config.yaml'
 
-  CONFIG_FILE_NAME = 'config.yaml'
-
-  def __init__(self,config_root):
-    config_file_path = os.path.join(config_root, self.CONFIG_FILE_NAME)
-    with open(config_file_path,'r') as config_file:
-      yconfig = yaml.load(config_file)
-    self.fritzbox_url = yconfig['fritzbox']['url']
-    self.target_path = yconfig['fritzbox']['target_path']
-    self.gpg_passphrase = yconfig['gpg_passphrase']
-    self.directories = yconfig.get('directories', [])
-    self.webdav = yconfig.get('webdav', [])
-    (self.username,_,self.password) = netrc.netrc().authenticators(self.fritzbox_url)
+    def __init__(self, config_root):
+        config_file_path = os.path.join(config_root, self.CONFIG_FILE_NAME)
+        with open(config_file_path, 'r') as config_file:
+            yconfig = yaml.load(config_file)
+        self.fritzbox_url = yconfig['fritzbox']['url']
+        self.target_path = yconfig['fritzbox']['target_path']
+        self.gpg_passphrase = yconfig['gpg_passphrase']
+        self.directories = yconfig.get('directories', [])
+        self.webdav = yconfig.get('webdav', [])
+        (self.username, _, self.password) = netrc.netrc().authenticators(
+            self.fritzbox_url)
 
 
 def backup_directory(config, name, source_path, subdir='directories'):
-  print('backing up directory {}: {}'.format(name,source_path))
-  ftp_url='ftp://{}@{}/{}/{}/{}'.format(config.username,config.fritzbox_url, config.target_path, subdir, name)
-  new_env = os.environ.copy()
-  new_env['FTP_PASSWORD'] = config.password
-  new_env['PASSPHRASE'] = config.gpg_passphrase
-  cmd = ['duplicity',source_path,ftp_url]
-  subprocess.check_call(cmd,env=new_env)
+    print('backing up directory {}: {}'.format(name, source_path))
+    ftp_url = 'ftp://{}@{}/{}/{}/{}'.format(config.username,
+                                            config.fritzbox_url,
+                                            config.target_path, subdir, name)
+    new_env = os.environ.copy()
+    new_env['FTP_PASSWORD'] = config.password
+    new_env['PASSPHRASE'] = config.gpg_passphrase
+    cmd = ['duplicity', source_path, ftp_url]
+    subprocess.check_call(cmd, env=new_env)
+
 
 def backup_webdav(config, name, url, username, password):
-  mount_dir = tempfile.mkdtemp()
-  print('backup up webdav folder {}: {}'.format(name, url))
-  mount_cmd = ['fusedav', url, '-u {}'.format(username), '-p {}'.format(password), mount_dir]
-  umount_cmd = ['fusermount','-u {}'.format(mount_dir)]
+    mount_dir = tempfile.mkdtemp()
+    print('backup up webdav folder {}: {}'.format(name, url))
+    mount_cmd = ['fusedav', url, '-u {}'.format(username),
+                 '-p {}'.format(password), mount_dir]
+    umount_cmd = ['fusermount', '-u {}'.format(mount_dir)]
 
-  subprocess.check_call(mount_cmd)
-  backup_directory(config, name, mount_dir, sudir='webdav')
+    subprocess.check_call(mount_cmd)
+    backup_directory(config, name, mount_dir, subdir='webdav')
 
-  subprocess.check_call(umount_cmd)
-  os.remove(mount_dir)
+    subprocess.check_call(umount_cmd)
+    os.remove(mount_dir)
 
 
 def main():
     config = Configuration(os.path.expanduser('~/.fritzbackup'))
     for directory in config.directories:
-      backup_directory(config, directory['name'], directory['path'])
+        backup_directory(config, directory['name'], directory['path'])
     for webdav in config.webdav:
-      backup_webdav(config, webdav['name'], webdav['url'], webdav['username'], webdav['password'])
+        backup_webdav(config, webdav['name'], webdav['url'],
+                      webdav['username'], webdav['password'])
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()
