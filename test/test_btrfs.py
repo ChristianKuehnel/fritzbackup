@@ -5,11 +5,12 @@ from datetime import datetime
 from subprocess import check_call
 
 from fritzbackup import FritzBackup
+from test import helper
 
 
 class TestBtrfs(unittest.TestCase):
 
-    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ROOT_DIR = helper.ROOT_DIR
     TEMP_DIR = os.path.join(ROOT_DIR, 'tmp')
     MOUNT_POINT = os.path.join(TEMP_DIR, 'mnt')
     IMG_FILE = os.path.join(TEMP_DIR, 'btrfs.img')
@@ -27,6 +28,8 @@ class TestBtrfs(unittest.TestCase):
         check_call('mkfs.btrfs {}'.format(cls.IMG_FILE), shell=True)
         check_call('mount -o loop {} {}'.format(cls.IMG_FILE, cls.MOUNT_POINT), shell=True)
         cls.update_testfile()
+
+        helper.build_containers()
 
     @classmethod
     def update_testfile(cls):
