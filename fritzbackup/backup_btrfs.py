@@ -71,6 +71,7 @@ class BackupBtrfs(object):
         ftp = ftplib.FTP()
         ftp.connect(self.config.fritzbox_url, self.config.fritzbox_port)
         ftp.login(self.config.username, self.config.password)
+        ftp.set_pasv(True)
         self._make_ch_dirs(ftp, deque([self.config.target_path, BTRFS_DIR, name]))
 
         proc = Popen(cmd, shell=True, stdout=PIPE)

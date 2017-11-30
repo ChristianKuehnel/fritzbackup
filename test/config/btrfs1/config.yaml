@@ -1,7 +1,7 @@
 fritzbox:
   host: localhost
   port: 2021
-  target_path: /
+  target_path: Backup
   username: tester
   password: test
 
