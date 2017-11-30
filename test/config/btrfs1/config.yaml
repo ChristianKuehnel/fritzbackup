@@ -1,0 +1,12 @@
+fritzbox:
+  url: ftp://localhost:21
+  target_path: /
+  username: tester
+  password: test
+
+gpg_passphrase: somestring
+
+btrfs:
+- name: test1
+  mount_point: tmp/mnt
+

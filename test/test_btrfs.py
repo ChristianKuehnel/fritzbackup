@@ -4,6 +4,8 @@ import unittest
 from datetime import datetime
 from subprocess import check_call
 
+from fritzbackup import FritzBackup
+
 
 class TestBtrfs(unittest.TestCase):
 
@@ -12,6 +14,7 @@ class TestBtrfs(unittest.TestCase):
     MOUNT_POINT = os.path.join(TEMP_DIR, 'mnt')
     IMG_FILE = os.path.join(TEMP_DIR, 'btrfs.img')
     TEST_FILE = os.path.join(MOUNT_POINT, 'test_file')
+    CONFIG_ROOT = os.path.join(ROOT_DIR, 'test', 'config')
 
     @classmethod
     def setUpClass(cls):
@@ -23,8 +26,14 @@ class TestBtrfs(unittest.TestCase):
         check_call('dd if=/dev/zero of={} bs=1M count=100'.format(cls.IMG_FILE), shell=True)
         check_call('mkfs.btrfs {}'.format(cls.IMG_FILE), shell=True)
         check_call('mount -o loop {} {}'.format(cls.IMG_FILE, cls.MOUNT_POINT), shell=True)
+        cls.update_testfile()
+
+    @classmethod
+    def update_testfile(cls):
         with open(cls.TEST_FILE, 'w') as test_file:
             test_file.write(datetime.now().isoformat()+"\n")
 
-    def test_nothing(self):
-        pass
+    def test_1(self):
+        config_dir = os.path.join(self.CONFIG_ROOT, 'btrfs1')
+        fb = FritzBackup(config_dir)
+        fb.run()

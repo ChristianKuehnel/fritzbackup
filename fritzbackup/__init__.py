@@ -44,8 +44,8 @@ class Configuration(object):
 
 class FritzBackup(object):
 
-    def __init__(self):
-        self.config = Configuration(os.path.expanduser('~/.fritzbackup'))
+    def __init__(self, config_root=os.path.expanduser('~/.fritzbackup')):
+        self.config = Configuration(config_root)
         self._check_executable('duplicity')
         self._check_executable('lftp')
 

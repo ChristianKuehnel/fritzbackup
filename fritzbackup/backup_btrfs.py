@@ -21,6 +21,9 @@ class BackupBtrfs(object):
         # TODO: check if we are root
 
     def backup(self, name, mount_point, keep_snapshots=3):
+        mount_point = os.path.abspath(mount_point)
+        if not os.path.exists(mount_point):
+            raise ValueError('mount point does not exist: {}'.format(mount_point))
         snapshot_name = '{}_{}'.format(SNAPSHOT_PREFIX, datetime.now().strftime(DATEFORMAT))
         last_snapshot = self.get_last_snapshot(mount_point)
         _LOGGER.debug('last snapshot was: %s', last_snapshot)
@@ -47,7 +50,10 @@ class BackupBtrfs(object):
         return snapshots[-1]
 
     def get_snapshots(self, mount_point):
-        snapshots = os.listdir(self._get_snapshot_root(mount_point))
+        try:
+            snapshots = os.listdir(self._get_snapshot_root(mount_point))
+        except FileNotFoundError:
+            return []
         snapshots = [s for s in snapshots if s.startswith(SNAPSHOT_PREFIX)]
         return sorted(snapshots)
 
