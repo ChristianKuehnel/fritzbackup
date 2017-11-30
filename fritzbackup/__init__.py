@@ -102,3 +102,15 @@ class FritzBackup(object):
             bb = BackupBtrfs(self.config)
             bb.backup(btrfs['name'], btrfs['mount_point'])
 
+    def list_backups(self):
+        # TODO: directories and nextcloud
+        backups = []
+        for btrfs in self.config.btrfs:
+            bb = BackupBtrfs(self.config)
+            backups.extend(bb.list_backups(btrfs['name']))
+        return backups
+
+    def restore_btrfs(self, name, snapshot, mount_point):
+        bb = BackupBtrfs(self.config)
+        bb.restore(name, snapshot, mount_point)
+

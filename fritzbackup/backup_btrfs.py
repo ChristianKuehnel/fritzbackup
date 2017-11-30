@@ -40,7 +40,8 @@ class BackupBtrfs(object):
         _LOGGER.debug('running command: %s', cmd)
         check_call(cmd, shell=True)
 
-    def _get_snapshot_root(self, mount_point):
+    @staticmethod
+    def _get_snapshot_root(mount_point):
         return os.path.join(mount_point, 'snapshots')
 
     def get_last_snapshot(self, mount_point):
@@ -63,16 +64,12 @@ class BackupBtrfs(object):
             _LOGGER.info('backing up diff between %s and %s', last_snapshot, current_snapshot)
             last_path = os.path.join(self._get_snapshot_root(mount_point), last_snapshot)
             cmd = 'btrfs send -p {} {}'.format(last_path, current_path)  # TODO: add gzip and gpg
-            backup_type ='incremental'
+            backup_type = 'incremental'
         else:
             cmd = 'btrfs send {}'.format(current_path)  # TODO: add gzip and gpg
             backup_type = 'full'
         _LOGGER.debug('running command: %s', cmd)
-        ftp = ftplib.FTP()
-        ftp.connect(self.config.fritzbox_url, self.config.fritzbox_port)
-        ftp.login(self.config.username, self.config.password)
-        ftp.set_pasv(True)
-        self._make_ch_dirs(ftp, deque([self.config.target_path, BTRFS_DIR, name]))
+        ftp = self._connect_ftp(name)
 
         proc = Popen(cmd, shell=True, stdout=PIPE)
         file_size = 0
@@ -98,6 +95,14 @@ class BackupBtrfs(object):
                 break
         _LOGGER.info("Transfered %d bytes", total_size)
 
+    def _connect_ftp(self, name):
+        ftp = ftplib.FTP()
+        ftp.connect(self.config.fritzbox_url, self.config.fritzbox_port)
+        ftp.login(self.config.username, self.config.password)
+        ftp.set_pasv(True)
+        self._make_ch_dirs(ftp, deque([self.config.target_path, BTRFS_DIR, name]))
+        return ftp
+
     def delete_old_snapshots(self, mount_point, num_keep_snapshots):
         snapshots = deque(self.get_snapshots(mount_point))
         while len(snapshots) > num_keep_snapshots:
@@ -118,6 +123,14 @@ class BackupBtrfs(object):
         if len(dir_list) == 0:
             return
         next_dir = dir_list.popleft()
+        files = BackupBtrfs._ftp_list(ftp)
+        if next_dir not in files:
+            ftp.mkd(next_dir)
+        ftp.cwd(next_dir)
+        BackupBtrfs._make_ch_dirs(ftp, dir_list)
+
+    @staticmethod
+    def _ftp_list(ftp):
         try:
             files = ftp.nlst()
         except ftplib.error_perm as e:
@@ -125,15 +138,18 @@ class BackupBtrfs(object):
                 files = []
             else:
                 raise
-        if next_dir not in files:
-            ftp.mkd(next_dir)
-        ftp.cwd(next_dir)
-        BackupBtrfs._make_ch_dirs(ftp, dir_list)
+        return files
 
-    def list_backups(self):
-        # TODO
-        pass
+    def list_backups(self, name):
+        ftp = self._connect_ftp(name)
+        files = self._ftp_list(ftp)
+        files = [f[0:-4] for f in files if f.endswith('_000')]
+        return files
 
-    def restore_backup(self):
-        # TODO
-        pass
+    def restore(self, name, snapshot, mount_point):
+        ftp = self._connect_ftp(name)
+        chunks = self._ftp_list(ftp)
+        chunks = sorted([f for f in chunks if f.startswith(snapshot)])
+        for chunk in chunks:
+            io_buffer = io.BytesIO()
+            ftp.retrbinary('RETR {}'.format(chunk),io_buffer.write)
