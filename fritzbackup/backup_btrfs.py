@@ -30,6 +30,7 @@ class BackupBtrfs(object):
         self.create_snapshot(mount_point, snapshot_name)
         self.backup_snapshot(name, mount_point, last_snapshot, snapshot_name)
         self.delete_old_snapshots(mount_point, keep_snapshots)
+        return snapshot_name
 
     def create_snapshot(self, mount_point, snapshot_name):
         snapshot_root = self._get_snapshot_root(mount_point)
@@ -80,11 +81,13 @@ class BackupBtrfs(object):
             while True:
                 next_buffer_size = min(SIZE_1_MB, max_file_size - file_size)
                 buffer = proc.stdout.read(next_buffer_size)
-                if buffer is None or proc.poll() is not None or file_size >= max_file_size:
+                if buffer is None:
                     break
                 io_buffer.write(buffer)
                 file_size += len(buffer)
                 total_size += len(buffer)
+                if proc.poll() is not None or file_size >= max_file_size:
+                    break
             io_buffer.seek(0)
             filename = '{}_{}_{:03d}'.format(current_snapshot, backup_type, file_count)
             ftp.storbinary('STOR {}'.format(filename), io_buffer)
@@ -147,9 +150,15 @@ class BackupBtrfs(object):
         return files
 
     def restore(self, name, snapshot, mount_point):
+        _LOGGER.info('restoring %s from snapshot %s to %s', name, snapshot, mount_point)
         ftp = self._connect_ftp(name)
         chunks = self._ftp_list(ftp)
         chunks = sorted([f for f in chunks if f.startswith(snapshot)])
+        _LOGGER.debug('restoring from %d files: %s', len(chunks), " ".join(chunks))
+        if len(chunks) == 0:
+            raise ValueError('Could not find snapshots: {}'.format(snapshot))
+        btrfs_receive = Popen('btrfs receive {}'.format(mount_point), shell=True, stdin=PIPE)
         for chunk in chunks:
-            io_buffer = io.BytesIO()
-            ftp.retrbinary('RETR {}'.format(chunk),io_buffer.write)
+            ftp.retrbinary('RETR {}'.format(chunk), btrfs_receive.stdin.write)
+        btrfs_receive.stdin.close()
+        btrfs_receive.wait(timeout=10)

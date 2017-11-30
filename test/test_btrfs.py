@@ -6,6 +6,7 @@ from subprocess import check_call
 
 from fritzbackup import FritzBackup
 from test import helper
+from time import sleep
 
 
 class TestBtrfs(unittest.TestCase):
@@ -54,7 +55,7 @@ class TestBtrfs(unittest.TestCase):
         with open(cls.TEST_FILE, 'w') as test_file:
             test_file.write(datetime.now().isoformat()+"\n")
 
-    def test_1(self):
+    def test_backup_restore(self):
         config_dir = os.path.join(self.CONFIG_ROOT, 'btrfs1')
         fb = FritzBackup(config_dir)
         fb.run()
@@ -64,3 +65,5 @@ class TestBtrfs(unittest.TestCase):
 
         self._setup_restore_img()
         fb.restore_btrfs('test1', backups[0], self.RESTORE_MOUNT_POINT)
+        #sleep(100)
+        self.assertTrue(os.path.isfile(os.path.join(self.RESTORE_MOUNT_POINT, 'test_file')))
