@@ -20,15 +20,14 @@ def start_ftp():
     client = _get_docker_client()
     stop_ftp()
     client.containers.run('test_ftp', name='test_ftp', detach=True,
-                         ports={'21/tcp': 2021})
+                          ports={'21/tcp': 2021,
+                                 '10090/tcp': 10090})
 
 
 def stop_ftp():
     client = _get_docker_client()
     try:
         container = client.containers.get('test_ftp')
-        if container.status == 'running':
-            container.stop()
-        container.remove()
+        container.remove(force=True)
     except docker.errors.NotFound:
         return

@@ -4,8 +4,6 @@ ENV HOSTNAME test_ftp
 RUN apk add -U vsftpd
 RUN adduser -D tester
 RUN echo tester:test | chpasswd
-RUN mkdir /home/tester/Backup
-#RUN chmod a-w /home/tester
 
 RUN echo "local_enable=YES" >> /etc/vsftpd/vsftpd.conf \
   && echo "write_enable=YES" >> /etc/vsftpd/vsftpd.conf \
