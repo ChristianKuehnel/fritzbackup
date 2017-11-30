@@ -1,6 +1,6 @@
 import os
 import docker
-
+from time import sleep
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DOCKER_ROOT = os.path.join(ROOT_DIR, 'test', 'docker')
@@ -18,9 +18,17 @@ def build_containers():
 
 def start_ftp():
     client = _get_docker_client()
-    client.container.run('test_ftp', name='test_ftp', detatch=True)
+    stop_ftp()
+    client.containers.run('test_ftp', name='test_ftp', detach=True,
+                         ports={'21/tcp': 2021})
 
 
 def stop_ftp():
     client = _get_docker_client()
-    client.container.stop('test_ftp')
+    try:
+        container = client.containers.get('test_ftp')
+        if container.status == 'running':
+            container.stop()
+        container.remove()
+    except docker.errors.NotFound:
+        return

@@ -1,5 +1,6 @@
 fritzbox:
-  url: ftp://localhost:21
+  host: localhost
+  port: 2021
   target_path: /
   username: tester
   password: test

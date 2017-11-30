@@ -3,6 +3,7 @@ import shutil
 import unittest
 from datetime import datetime
 from subprocess import check_call
+from time import sleep
 
 from fritzbackup import FritzBackup
 from test import helper
@@ -28,8 +29,12 @@ class TestBtrfs(unittest.TestCase):
         check_call('mkfs.btrfs {}'.format(cls.IMG_FILE), shell=True)
         check_call('mount -o loop {} {}'.format(cls.IMG_FILE, cls.MOUNT_POINT), shell=True)
         cls.update_testfile()
-
         helper.build_containers()
+        helper.start_ftp()
+
+    @classmethod
+    def tearDownClass(cls):
+        helper.stop_ftp()
 
     @classmethod
     def update_testfile(cls):

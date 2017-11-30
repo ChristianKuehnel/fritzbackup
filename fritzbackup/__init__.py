@@ -21,7 +21,10 @@ class Configuration(object):
         self.cache_dir = os.path.join(config_root, 'cache')
         with open(config_file_path, 'r') as config_file:
             yconfig = yaml.load(config_file)
-        self.fritzbox_url = yconfig['fritzbox']['url']
+        self.fritzbox_url = yconfig['fritzbox']['host']
+        self.fritzbox_port = 21
+        if 'port' in yconfig['fritzbox']:
+            self.fritzbox_port = yconfig['fritzbox']['port']
         self.target_path = yconfig['fritzbox']['target_path']
         self.username = yconfig['fritzbox']['username']
         self.password = yconfig['fritzbox']['password']
@@ -56,10 +59,11 @@ class FritzBackup(object):
 
     def backup_directory(self, name, source_path, subdir=DIRECTORIES_FOLDER):
         print('backing up directory {}: {}'.format(name, source_path))
-        ftp_url = 'ftp://{}@{}/{}/{}/{}'.format(self.config.username,
-                                                self.config.fritzbox_url,
-                                                self.config.target_path,
-                                                subdir, name)
+        ftp_url = 'ftp://{}@{}:{}/{}/{}/{}'.format(self.config.username,
+                                                   self.config.fritzbox_url,
+                                                   self.config.fritzbox_port,
+                                                   self.config.target_path,
+                                                   subdir, name)
         new_env = os.environ.copy()
         new_env['FTP_PASSWORD'] = self.config.password
         new_env['PASSPHRASE'] = self.config.gpg_passphrase

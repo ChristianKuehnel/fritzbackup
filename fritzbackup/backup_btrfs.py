@@ -68,9 +68,9 @@ class BackupBtrfs(object):
             cmd = 'btrfs send {}'.format(current_path)  # TODO: add gzip and gpg
             backup_type = 'full'
         _LOGGER.debug('running command: %s', cmd)
-        ftp = ftplib.FTP(host=self.config.fritzbox_url,
-                  user=self.config.username,
-                  passwd=self.config.password)
+        ftp = ftplib.FTP()
+        ftp.connect(self.config.fritzbox_url, self.config.fritzbox_port)
+        ftp.login(self.config.username, self.config.password)
         self._make_ch_dirs(ftp, deque([self.config.target_path, BTRFS_DIR, name]))
 
         proc = Popen(cmd, shell=True, stdout=PIPE)
