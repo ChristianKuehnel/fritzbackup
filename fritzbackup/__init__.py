@@ -25,6 +25,9 @@ class Configuration(object):
         self.fritzbox_port = 21
         if 'port' in yconfig['fritzbox']:
             self.fritzbox_port = yconfig['fritzbox']['port']
+        self.ca_cert = None
+        if 'ca-cert' in yconfig['fritzbox']:
+            self.ca_cert = yconfig['fritzbox']['ca-cert']
         self.target_path = yconfig['fritzbox']['target_path']
         self.username = yconfig['fritzbox']['username']
         self.password = yconfig['fritzbox']['password']
@@ -68,6 +71,9 @@ class FritzBackup(object):
         new_env['FTP_PASSWORD'] = self.config.password
         new_env['PASSPHRASE'] = self.config.gpg_passphrase
         cmd = ['duplicity', source_path, ftp_url]
+        if self.config.ca_cert is not None:
+            cmd.append('--ssl-cacert-file {}'.format(self.config.ca_cert))
+        _LOGGER.debug('executing command: %s', ' '.join(cmd))
         subprocess.check_call(cmd, env=new_env)
 
     def backup_nextcloud(self, name, url, username, password, local_cache_dir=None):
