@@ -63,15 +63,20 @@ class FritzBackup(object):
     def backup_directory(self, name, source_path, subdir=DIRECTORIES_FOLDER):
         print('backing up directory {}: {}'.format(name, source_path))
         ftp_url = self._generate_ftp_url(name, subdir)
-        new_env = self._generate_env()
         cmd = ['duplicity', 'incremental']
         if self.config.ca_cert is not None:
             cmd.append('--ssl-cacert-file {}'.format(self.config.ca_cert))
         cmd.append('--full-if-older-than 3M')
         cmd.append(source_path)
         cmd.append(ftp_url)
-        _LOGGER.debug('executing command: %s', ' '.join(cmd))
-        subprocess.check_call(cmd, env=new_env)
+        self._runcmd(cmd)
+
+    def _runcmd(self, cmd):
+        new_env = self._generate_env()
+        _cmd = ' '.join(cmd)
+        _LOGGER.debug('executing command: %s', _cmd)
+        subprocess.check_call(_cmd, env=new_env, shell=True)
+
 
     def _generate_env(self):
         new_env = os.environ.copy()
@@ -140,6 +145,6 @@ class FritzBackup(object):
 
     def remove_old_backups(self, dirname, subdir=DIRECTORIES_FOLDER):
         url = self._generate_ftp_url(dirname, subdir)
-        env = self._generate_env()
-        subprocess.check_call(['duplicity', 'remove-all-but-n-full ', '4', url], env=env)
-        subprocess.check_call(['duplicity', 'remove-all-inc-of-but-n-full', 2, url], env=env)
+        self._rumcmd(['duplicity', 'remove-all-but-n-full ', '4', url])
+        self._rumcmd(['duplicity', 'remove-all-inc-of-but-n-full', 2, url])
+
