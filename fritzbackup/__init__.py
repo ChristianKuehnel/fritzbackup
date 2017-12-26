@@ -27,7 +27,7 @@ class Configuration(object):
             self.fritzbox_port = yconfig['fritzbox']['port']
         self.ca_cert = None
         if 'ca-cert' in yconfig['fritzbox']:
-            self.ca_cert = yconfig['fritzbox']['ca-cert']
+            self.ca_cert = os.path.normpath(os.path.join(config_root, yconfig['fritzbox']['ca-cert']))
         self.target_path = yconfig['fritzbox']['target_path']
         self.username = yconfig['fritzbox']['username']
         self.password = yconfig['fritzbox']['password']
@@ -62,19 +62,30 @@ class FritzBackup(object):
 
     def backup_directory(self, name, source_path, subdir=DIRECTORIES_FOLDER):
         print('backing up directory {}: {}'.format(name, source_path))
+        ftp_url = self._generate_ftp_url(name, subdir)
+        new_env = self._generate_env()
+        cmd = ['duplicity', 'incremental']
+        if self.config.ca_cert is not None:
+            cmd.append('--ssl-cacert-file {}'.format(self.config.ca_cert))
+        cmd.append('--full-if-older-than 3M')
+        cmd.append(source_path)
+        cmd.append(ftp_url)
+        _LOGGER.debug('executing command: %s', ' '.join(cmd))
+        subprocess.check_call(cmd, env=new_env)
+
+    def _generate_env(self):
+        new_env = os.environ.copy()
+        new_env['FTP_PASSWORD'] = self.config.password
+        new_env['PASSPHRASE'] = self.config.gpg_passphrase
+        return new_env
+
+    def _generate_ftp_url(self, name, subdir):
         ftp_url = 'ftp://{}@{}:{}/{}/{}/{}'.format(self.config.username,
                                                    self.config.fritzbox_url,
                                                    self.config.fritzbox_port,
                                                    self.config.target_path,
                                                    subdir, name)
-        new_env = os.environ.copy()
-        new_env['FTP_PASSWORD'] = self.config.password
-        new_env['PASSPHRASE'] = self.config.gpg_passphrase
-        cmd = ['duplicity', source_path, ftp_url]
-        if self.config.ca_cert is not None:
-            cmd.append('--ssl-cacert-file {}'.format(self.config.ca_cert))
-        _LOGGER.debug('executing command: %s', ' '.join(cmd))
-        subprocess.check_call(cmd, env=new_env)
+        return ftp_url
 
     def backup_nextcloud(self, name, url, username, password, local_cache_dir=None):
         self._check_executable('owncloudcmd')
@@ -107,6 +118,7 @@ class FritzBackup(object):
         for btrfs in self.config.btrfs:
             bb = BackupBtrfs(self.config)
             bb.backup(btrfs['name'], btrfs['mount_point'])
+        self.remove_all_old_backups()
 
     def list_backups(self):
         # TODO: directories and nextcloud
@@ -120,3 +132,14 @@ class FritzBackup(object):
         bb = BackupBtrfs(self.config)
         bb.restore(name, snapshot, mount_point)
 
+    def remove_all_old_backups(self):
+        for directory in self.config.directories:
+            self.remove_old_backups(directory)
+        for directory in self.config.nextcloud:
+            self.remove_old_backups(directory, subdir=NEXTCLOUD_FOLDER)
+
+    def remove_old_backups(self, dirname, subdir=DIRECTORIES_FOLDER):
+        url = self._generate_ftp_url(dirname, subdir)
+        env = self._generate_env()
+        subprocess.check_call(['duplicity', 'remove-all-but-n-full ', '4', url], env=env)
+        subprocess.check_call(['duplicity', 'remove-all-inc-of-but-n-full', 2, url], env=env)
